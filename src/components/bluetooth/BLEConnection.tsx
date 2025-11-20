@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 interface BLEConnectionProps {
   biometricData: {
-    face: string | null;
+    face: { img1: string; img2: string; img3: string } | null;
     voice: string | null;
     gesture: string | null;
   };
@@ -15,48 +15,78 @@ interface BLEConnectionProps {
   onClose: () => void;
 }
 
+// Arduino Nano BLE Rev2 Service and Characteristic UUIDs
+// Replace these with your actual UUIDs from Arduino sketch
+const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
+const CHARACTERISTIC_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
+
 export const BLEConnection = ({ biometricData, mode, onClose }: BLEConnectionProps) => {
   const [isScanning, setIsScanning] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [result, setResult] = useState<"success" | "failed" | null>(null);
   const [device, setDevice] = useState<any>(null);
+  const [characteristic, setCharacteristic] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const scanAndConnect = async () => {
     try {
       setIsScanning(true);
+      setErrorMessage("");
       
       // Check if Web Bluetooth API is available
       if (!(navigator as any).bluetooth) {
-        toast.error("Web Bluetooth API is not available in your browser");
+        const msg = "Web Bluetooth is not supported. Use Chrome on Android/Desktop or Edge. HTTPS required.";
+        setErrorMessage(msg);
+        toast.error(msg);
         return;
       }
 
-      // Request BLE device
+      // Check if running on HTTPS or localhost
+      if (window.location.protocol !== "https:" && !window.location.hostname.includes("localhost")) {
+        const msg = "Web Bluetooth requires HTTPS. Deploy to a secure server or use localhost.";
+        setErrorMessage(msg);
+        toast.error(msg);
+        return;
+      }
+
+      // Request BLE device with correct service UUID
       const bleDevice = await (navigator as any).bluetooth.requestDevice({
         filters: [{ namePrefix: "Arduino" }],
-        optionalServices: ["generic_access"]
+        optionalServices: [SERVICE_UUID]
       });
 
       setDevice(bleDevice);
+      console.log("Device selected:", bleDevice.name);
       
-      // Connect to the device
+      // Connect to GATT server
       const server = await bleDevice.gatt?.connect();
+      console.log("GATT server connected");
       
-      if (server?.connected) {
-        setIsConnected(true);
-        toast.success("Connected to Arduino BLE device");
-      }
-    } catch (error) {
+      // Get the service
+      const service = await server.getPrimaryService(SERVICE_UUID);
+      console.log("Service found");
+      
+      // Get the characteristic
+      const char = await service.getCharacteristic(CHARACTERISTIC_UUID);
+      console.log("Characteristic found");
+      
+      setCharacteristic(char);
+      setIsConnected(true);
+      toast.success(`Connected to ${bleDevice.name}`);
+      
+    } catch (error: any) {
       console.error("BLE connection error:", error);
-      toast.error("Failed to connect to BLE device");
+      const msg = error.message || "Failed to connect to BLE device";
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setIsScanning(false);
     }
   };
 
   const sendData = async () => {
-    if (!device || !isConnected) {
+    if (!characteristic || !isConnected) {
       toast.error("No device connected");
       return;
     }
@@ -66,32 +96,60 @@ export const BLEConnection = ({ biometricData, mode, onClose }: BLEConnectionPro
 
       // Prepare payload
       const payload = JSON.stringify({
+        mode: mode,
         face: biometricData.face,
         voice: biometricData.voice,
-        gesture: biometricData.gesture,
-        mode: mode
+        gesture: biometricData.gesture
       });
 
-      // In a real implementation, you would send this via BLE characteristic
-      // For now, we'll simulate the response
-      console.log("Sending data:", { mode, dataLength: payload.length });
+      console.log("Preparing to send data:", { mode, dataLength: payload.length });
 
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Convert payload to chunks (BLE has MTU limits, typically 20-512 bytes)
+      const CHUNK_SIZE = 512; // Adjust based on your Arduino's MTU
+      const encoder = new TextEncoder();
+      const payloadBytes = encoder.encode(payload);
+      
+      // Send data in chunks
+      for (let i = 0; i < payloadBytes.length; i += CHUNK_SIZE) {
+        const chunk = payloadBytes.slice(i, i + CHUNK_SIZE);
+        await characteristic.writeValue(chunk);
+        console.log(`Sent chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(payloadBytes.length / CHUNK_SIZE)}`);
+        await new Promise(resolve => setTimeout(resolve, 50)); // Small delay between chunks
+      }
 
-      // Simulate Arduino response (replace with actual BLE read)
-      const simulatedResponse = Math.random() > 0.3 
-        ? (mode === "enroll" ? "ENROLL_SUCCESS" : "AUTH_SUCCESS")
-        : (mode === "enroll" ? "ENROLL_FAILED" : "AUTH_FAILED");
+      // Send END signal
+      const endSignal = encoder.encode("END");
+      await characteristic.writeValue(endSignal);
+      console.log("END signal sent");
 
-      handleResponse(simulatedResponse);
-    } catch (error) {
+      // Wait for Arduino response
+      toast.info("Waiting for Arduino response...");
+      
+      // Start notifications to receive response
+      await characteristic.startNotifications();
+      
+      // Listen for response
+      characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
+      
+    } catch (error: any) {
       console.error("Error sending data:", error);
-      toast.error("Failed to send data to device");
+      toast.error(`Failed to send data: ${error.message}`);
       setResult("failed");
-    } finally {
       setIsSending(false);
     }
+  };
+
+  const handleCharacteristicValueChanged = (event: any) => {
+    const value = event.target.value;
+    const decoder = new TextDecoder();
+    const response = decoder.decode(value);
+    
+    console.log("Received from Arduino:", response);
+    handleResponse(response);
+    setIsSending(false);
+    
+    // Stop listening
+    event.target.removeEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
   };
 
   const handleResponse = (response: string) => {
@@ -222,11 +280,19 @@ export const BLEConnection = ({ biometricData, mode, onClose }: BLEConnectionPro
           )}
         </div>
 
+        {errorMessage && (
+          <div className="mt-4 p-4 bg-destructive/10 border border-destructive rounded-lg">
+            <p className="text-sm text-destructive font-semibold">Error:</p>
+            <p className="text-xs text-destructive mt-1">{errorMessage}</p>
+          </div>
+        )}
+
         <div className="mt-4 p-4 bg-muted rounded-lg">
           <p className="text-xs text-muted-foreground">
-            <strong>Note:</strong> Web Bluetooth requires HTTPS. Make sure your app is served over HTTPS 
-            or use localhost for testing. The Arduino Nano BLE Rev2 must be properly configured 
-            to receive and process the biometric data payload.
+            <strong>Requirements:</strong> Web Bluetooth requires HTTPS (or localhost). 
+            Arduino service UUID: <code className="bg-background px-1 py-0.5 rounded text-xs">{SERVICE_UUID}</code>
+            <br />
+            <strong>Browser Support:</strong> Chrome (Android/Desktop), Edge, Opera. Not supported in Safari/Firefox.
           </p>
         </div>
       </DialogContent>

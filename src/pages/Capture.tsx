@@ -10,7 +10,7 @@ import { BLEConnection } from "@/components/bluetooth/BLEConnection";
 import { toast } from "sonner";
 
 interface BiometricData {
-  face: string | null;
+  face: { img1: string; img2: string; img3: string } | null;
   voice: string | null;
   gesture: string | null;
 }
@@ -28,7 +28,7 @@ const Capture = () => {
   
   const [showBLE, setShowBLE] = useState(false);
 
-  const updateBiometric = (type: keyof BiometricData, data: string) => {
+  const updateBiometric = (type: keyof BiometricData, data: any) => {
     setBiometricData(prev => ({ ...prev, [type]: data }));
     toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} captured successfully`);
   };
