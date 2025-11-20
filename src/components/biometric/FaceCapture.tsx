@@ -11,11 +11,14 @@ interface FaceCaptureProps {
 export const FaceCapture = ({ onCapture, captured }: FaceCaptureProps) => {
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const startCamera = async () => {
     try {
+      setIsVideoReady(false);
+      
       // Request camera with mobile-friendly constraints
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -30,6 +33,13 @@ export const FaceCapture = ({ onCapture, captured }: FaceCaptureProps) => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
+        // Wait for video metadata to load
+        videoRef.current.onloadedmetadata = () => {
+          console.log("Video metadata loaded");
+          setIsVideoReady(true);
+        };
+        
         // Ensure video plays immediately
         try {
           await videoRef.current.play();
@@ -47,31 +57,31 @@ export const FaceCapture = ({ onCapture, captured }: FaceCaptureProps) => {
   };
 
   const captureImage = () => {
-    if (videoRef.current && videoRef.current.videoWidth > 0) {
-      const canvas = document.createElement("canvas");
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext("2d");
+    if (!videoRef.current || !isVideoReady) {
+      return;
+    }
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0);
+      const base64 = canvas.toDataURL("image/jpeg", 0.8);
       
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0);
-        const base64 = canvas.toDataURL("image/jpeg", 0.8);
-        
-        const newImages = [...capturedImages, base64];
-        setCapturedImages(newImages);
-        
-        // If we have 3 images, complete capture
-        if (newImages.length === 3) {
-          onCapture({
-            img1: newImages[0],
-            img2: newImages[1],
-            img3: newImages[2]
-          });
-          stopCamera();
-        }
+      const newImages = [...capturedImages, base64];
+      setCapturedImages(newImages);
+      
+      // If we have 3 images, complete capture
+      if (newImages.length === 3) {
+        onCapture({
+          img1: newImages[0],
+          img2: newImages[1],
+          img3: newImages[2]
+        });
+        stopCamera();
       }
-    } else {
-      alert("Camera not ready. Please wait and try again.");
     }
   };
 
@@ -81,6 +91,7 @@ export const FaceCapture = ({ onCapture, captured }: FaceCaptureProps) => {
       streamRef.current = null;
     }
     setIsCapturing(false);
+    setIsVideoReady(false);
   };
 
   const resetCapture = () => {
@@ -124,12 +135,21 @@ export const FaceCapture = ({ onCapture, captured }: FaceCaptureProps) => {
                   muted
                   className="w-full h-full object-cover"
                 />
+                {!isVideoReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <p className="text-white text-sm">Loading camera...</p>
+                  </div>
+                )}
                 <div className="absolute top-2 right-2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold">
                   {capturedImages.length}/3
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button onClick={captureImage} className="flex-1 sm:flex-initial">
+                <Button 
+                  onClick={captureImage} 
+                  className="flex-1 sm:flex-initial"
+                  disabled={!isVideoReady}
+                >
                   Capture Image {capturedImages.length + 1}
                 </Button>
                 <Button onClick={stopCamera} variant="outline">
