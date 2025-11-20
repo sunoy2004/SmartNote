@@ -1,0 +1,39 @@
+# FastAPI for backend API
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# PyTorch (CPU-only version for lightweight deployment)
+torch==2.7.1+cpu
+torchaudio==2.7.1+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# HuggingFace dataset library
+datasets==2.14.6
+
+# Audio processing (librosa instead of torchaudio to avoid issues)
+librosa==0.10.1
+soundfile==0.12.1
+
+# Supabase integration
+supabase==2.4.5
+python-dotenv==1.0.0
+
+# Text processing
+nltk==3.8.1
+
+# Transformers for pre-models
+transformers==4.38.0
+tokenizers==0.15.2
+
+# Additional dependencies for Whisper
+accelerate==0.27.2
+
+# Utilities
+numpy==1.24.3
+tqdm==4.66.1
+jiwer==3.0.4
+
+# Development tools
+black==23.10.1
+flake8==6.1.0
