@@ -320,7 +320,4 @@ async def websocket_transcribe(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    import os
-    # Use RENDER_PORT or PORT environment variable if available, otherwise default to 8000
-    port = int(os.environ.get("RENDER_PORT", os.environ.get("PORT", 8000)))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
