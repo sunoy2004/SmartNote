@@ -2,7 +2,7 @@
 
 Transform your spoken words into organized notes with AI-powered transcription and summarization.
 
-![Static Demo: https://smart-note-assistant.netlify.app/]
+Static Demo: https://smart-note-assistant.netlify.app/
 
 ## 🎯 What is SmartNote?
 
