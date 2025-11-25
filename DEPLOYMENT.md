@@ -246,6 +246,91 @@ The system includes basic logging. For production deployments, consider adding:
 3. **Storage**: Leverage Supabase Storage CDN
 4. **Compute**: Use Supabase Edge Functions for serverless inference
 
+## Free Hosting Options for Backend
+
+For permanent free hosting of the backend, several platforms offer free tiers that can accommodate this FastAPI application:
+
+### 1. Railway.app
+- **Free Tier**: 500 hours/month, 1GB RAM, 1GB disk space
+- **Deployment**: Connect GitHub repository and deploy with one click
+- **Environment Variables**: Set via dashboard
+- **Custom Domain**: Available on paid plans only
+- **Sleep**: No sleep on free tier
+
+### 2. Render.com
+- **Free Tier**: Web services sleep after 15 minutes of inactivity
+- **Deployment**: Connect GitHub repository or deploy via CLI
+- **Environment Variables**: Set via dashboard
+- **Custom Domain**: Available on paid plans only
+- **Wake-up Time**: May take a few seconds to wake up after sleep
+
+### 3. Fly.io
+- **Free Tier**: Generous free tier with 3 shared-CPU-1x 256MB VMs
+- **Deployment**: Deploy using Fly CLI
+- **Environment Variables**: Set via fly.toml or CLI
+- **Regions**: Deploy to multiple regions
+- **Sleep**: No sleep on free tier
+
+### 4. PythonAnywhere
+- **Free Tier**: Limited to one Python web application
+- **Deployment**: Upload code via web interface or Git
+- **Environment Variables**: Limited support
+- **Custom Domain**: Not available on free tier
+- **Sleep**: No sleep on free tier
+
+### 5. Deta Space (Now deprecated, but similar options exist)
+- **Alternative**: Consider other Vercel-like platforms for Python
+
+### Recommended Approach for Free Hosting
+
+1. **Choose Railway.app** for the best experience with no sleep and good resources
+2. **Set Environment Variables** in the platform dashboard:
+   - `SUPABASE_URL` - Your Supabase project URL
+   - `SUPABASE_KEY` - Your Supabase anonymous key
+   - `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
+
+3. **Deployment Steps** (using Railway as example):
+   ```bash
+   # 1. Create a Railway account and install CLI
+   npm install -g @railway/cli
+   
+   # 2. Login to Railway
+   railway login
+   
+   # 3. Initialize project in the backend directory
+   cd backend
+   railway init
+   
+   # 4. Deploy
+   railway up
+   
+   # 5. Set environment variables
+   railway variables set SUPABASE_URL=your_supabase_url
+   railway variables set SUPABASE_KEY=your_supabase_key
+   railway variables set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   ```
+
+4. **Alternative Deployment Method**:
+   - Push code to GitHub
+   - Connect GitHub repository to Railway/Render
+   - Set environment variables in the platform dashboard
+   - Enable automatic deployments on push
+
+### Important Considerations for Free Hosting
+
+1. **Resource Limitations**: Free tiers have limited CPU, memory, and disk space
+2. **Model Loading Time**: First request may be slow due to model loading
+3. **Cold Starts**: Some platforms may have cold start delays
+4. **Bandwidth Limits**: Free tiers often have bandwidth limitations
+5. **Sleep Policies**: Some platforms sleep inactive applications
+
+### Optimizing for Free Hosting
+
+1. **Reduce Model Size**: Use quantized models where possible
+2. **Efficient Loading**: Implement lazy loading for models
+3. **Caching**: Cache frequently used results
+4. **Error Handling**: Implement robust error handling for resource constraints
+
 ## Backup and Recovery
 
 1. **Model Backups**: Supabase Storage provides automatic backups
