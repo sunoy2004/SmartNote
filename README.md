@@ -142,10 +142,17 @@ Tested on:
 2. Build the frontend: `npm run build`
 3. Serve the built files with any static server
 
+### Netlify Deployment
+1. Build the application: `npm run build`
+2. This creates a `dist` folder with all production assets
+3. Deploy the `dist` folder to Netlify using their dashboard or CLI
+4. Set environment variables in Netlify dashboard if needed
+
 ### Cloud Deployment
 1. Deploy backend to any cloud platform (Heroku, Railway, AWS, etc.)
 2. Set environment variables for configuration
 3. Serve frontend as static files
+4. For Netlify: Point to the `dist` directory as the publish directory
 
 ## 🤝 Contributing
 
